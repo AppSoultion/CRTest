@@ -61,217 +61,161 @@ def process_product_url(url):
     return url
 
 def extract_product_info_with_undetected(product_url, proxy=None):
-    """원본 Python 코드와 완전 동일한 상품 정보 추출 함수"""
+    """undetected-chromedriver를 사용하여 상품 정보 추출 (Chrome 경로 지정)"""
     driver = None
     try:
         logger.info(f"undetected-chromedriver를 사용하여 상품 정보 추출 시도: {product_url}")
 
-        # undetected_chromedriver 설정 (원본과 동일)
-        try:
-            temp_dir = os.path.join(os.path.expanduser('~'), '.temp_chromedriver')
-            os.makedirs(temp_dir, exist_ok=True)
-            os.environ['UC_DRIVER_CACHE_DIR'] = temp_dir
-
-            if not hasattr(uc, 'TARGET_VERSION'):
-                uc.TARGET_VERSION = 114
-
-            try:
-                import socket
-                socket.setdefaulttimeout(30)
-            except:
-                pass
-
-        except Exception as e:
-            logger.error(f"undetected_chromedriver 설정 오류: {str(e)}")
-
-     # Chrome 옵션 설정 (가상 디스플레이 환경용)
-        # Chrome 옵션 설정 (호환성 우선)
+        # Chrome 옵션 설정 (최소한으로 유지)
         options = uc.ChromeOptions()
         
-        # 기본 필수 설정
+        # 필수 보안 설정
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-setuid-sandbox")
-        options.add_argument("--disable-gpu")
         
-        # 자동화 감지 방지 (핵심만)
+        # 자동화 감지 방지
         options.add_argument("--disable-blink-features=AutomationControlled")
         
-        # 기본 브라우저 설정
+        # 기본 설정
         options.add_argument("--disable-extensions")
-        options.add_argument("--disable-popup-blocking")
+        options.add_argument("--disable-gpu")
         options.add_argument("--lang=ko-KR,ko")
         
-        # 성능 최적화
-        options.add_argument("--blink-settings=imagesEnabled=false")
-        
-        # 네트워크 설정
-        options.add_argument("--ignore-certificate-errors")
-        options.add_argument("--disable-web-security")
-        
-        # 가상 디스플레이
+        # 가상 디스플레이 사용 (헤드리스 모드 없이)
         options.add_argument("--display=:99")
+        options.add_argument("--window-size=1280,1024")
         
-        # User-Agent (간단한 방식)
-        options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        # User-Agent 설정
+        options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
         
-        # 문제가 되는 옵션들 제거:
-        # - excludeSwitches 관련
-        # - useAutomationExtension 관련 
-        # - experimental_option 관련
-        
-        # 헤드리스 모드 제거됨 - 가상 디스플레이 사용
-
         # 프록시 설정
         if proxy:
             options.add_argument(f'--proxy-server={proxy}')
             logger.info(f"프록시 설정: {proxy}")
 
-        # 브라우저 시작
+        # Chrome 브라우저 시작 (경로 명시적 지정)
         try:
-            driver = uc.Chrome(options=options, use_subprocess=True)
+            # Chrome 실행 파일 경로를 명시적으로 지정
+            chrome_binary_path = "/usr/bin/google-chrome-stable"
+            
+            # Chrome 바이너리가 존재하는지 확인
+            if not os.path.exists(chrome_binary_path):
+                logger.error(f"Chrome 실행 파일을 찾을 수 없습니다: {chrome_binary_path}")
+                # 다른 가능한 경로들 확인
+                possible_paths = [
+                    "/usr/bin/google-chrome",
+                    "/usr/bin/chromium-browser",
+                    "/usr/bin/chromium",
+                    "/opt/google/chrome/chrome"
+                ]
+                
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        chrome_binary_path = path
+                        logger.info(f"Chrome 실행 파일 발견: {chrome_binary_path}")
+                        break
+                else:
+                    logger.error("Chrome 실행 파일을 찾을 수 없습니다")
+                    return None
+            
+            # Chrome 버전 확인
+            try:
+                import subprocess
+                result = subprocess.run([chrome_binary_path, '--version'], 
+                                      capture_output=True, text=True, timeout=10)
+                logger.info(f"Chrome 버전: {result.stdout.strip()}")
+            except Exception as e:
+                logger.warning(f"Chrome 버전 확인 실패: {str(e)}")
+            
+            # undetected_chromedriver에 Chrome 경로 지정
+            driver = uc.Chrome(
+                options=options, 
+                use_subprocess=True,
+                browser_executable_path=chrome_binary_path,
+                driver_executable_path=None  # 자동으로 다운로드하도록
+            )
+            
             driver.set_page_load_timeout(30)
+            logger.info("Chrome 브라우저 초기화 성공")
+            
         except Exception as e:
             logger.error(f"Chrome 드라이버 초기화 오류: {str(e)}")
-            return None
+            
+            # 대안: 시스템 환경변수 설정 후 재시도
+            try:
+                import subprocess
+                
+                # Chrome과 ChromeDriver가 PATH에 있는지 확인
+                chrome_check = subprocess.run(['which', 'google-chrome-stable'], 
+                                            capture_output=True, text=True)
+                if chrome_check.returncode == 0:
+                    logger.info(f"Chrome 경로: {chrome_check.stdout.strip()}")
+                
+                # 다시 시도 (경로 지정 없이)
+                driver = uc.Chrome(options=options, use_subprocess=True)
+                driver.set_page_load_timeout(30)
+                logger.info("Chrome 브라우저 초기화 성공 (두 번째 시도)")
+                
+            except Exception as e2:
+                logger.error(f"Chrome 드라이버 재시도 실패: {str(e2)}")
+                return None
 
         try:
             # 쿠팡 홈페이지 먼저 방문
             logger.info("쿠팡 홈페이지 사전 방문...")
             driver.get("https://m.coupang.com")
-            time.sleep(3)
+            time.sleep(5)  # 더 긴 대기 시간
 
             # 상품 페이지 방문
             logger.info(f"상품 페이지 방문: {product_url}")
             driver.get(product_url)
-            time.sleep(5)
+            time.sleep(8)  # 충분한 로딩 시간
 
-            # 페이지 로드 대기
+            # 페이지 로드 완료 대기
             try:
-                WebDriverWait(driver, 10).until(
+                WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
+                logger.info("페이지 로드 완료")
             except TimeoutException:
-                logger.warning("페이지 로드 타임아웃")
+                logger.warning("페이지 로드 타임아웃, 계속 진행")
+
+            # 페이지 제목 확인
+            title = driver.title
+            logger.info(f"페이지 제목: {title}")
+            
+            if "사이트에 연결할 수 없음" in title or "Access Denied" in title or "ERR_" in title:
+                logger.error("사이트 접근이 차단되었거나 에러 페이지입니다.")
+                
+                # 페이지 소스 일부 로깅
+                page_source_preview = driver.page_source[:500]
+                logger.info(f"페이지 소스 미리보기: {page_source_preview}")
+                
                 return None
 
-            # 상품 정보 추출 (원본 로직과 동일)
-            result = {}
+            # HTML 추출
+            html_content = driver.page_source
+            logger.info(f"HTML 추출 완료 ({len(html_content)} bytes)")
+            
+            # 실제 쿠팡 콘텐츠인지 확인
+            if len(html_content) < 10000 or "coupang" not in html_content.lower():
+                logger.warning("쿠팡 페이지가 아니거나 내용이 부족합니다")
+                logger.info(f"페이지 소스 샘플: {html_content[:1000]}")
+                return None
 
+            # 간단한 상품 정보 추출도 시도
+            result = {
+                "html": html_content,
+                "html_length": len(html_content),
+                "title": title
+            }
+            
             # 제품 ID 추출
             product_id_match = re.search(r'/products/(\d+)', product_url)
             if product_id_match:
                 result["productId"] = product_id_match.group(1)
-
-            # 제품명 추출
-            try:
-                title = driver.title
-                if "사이트에 연결할 수 없음" in title or "Access Denied" in title:
-                    logger.error("사이트 접근이 차단되었습니다.")
-                    return None
-
-                result["productName"] = title.split(" - ")[0] if " - " in title else title
-
-                # 제품명 추출 백업 방법 (h1 태그에서)
-                if not result.get("productName") or len(result["productName"]) < 5:
-                    h1_elements = driver.find_elements(By.TAG_NAME, "h1")
-                    if h1_elements:
-                        result["productName"] = h1_elements[0].text.strip()
-                        logger.info(f"H1 태그에서 제품명 추출: {result['productName']}")
-            except Exception as e:
-                logger.warning(f"제품명 추출 중 오류: {str(e)}")
-
-            # 가격 추출 (원본과 동일한 복잡한 로직)
-            try:
-                # 1. 정확한 가격 클래스로 시도 (현재가)
-                final_price_elements = driver.find_elements(By.CSS_SELECTOR, ".price-amount.final-price-amount")
-                if final_price_elements:
-                    price_text = final_price_elements[0].text.strip()
-                    price_match = re.search(r'([0-9,]+)(?:원)?', price_text)
-                    if price_match:
-                        result["price"] = price_match.group(1).replace(",", "") + "원"
-                        logger.info(f"현재가 추출 성공: {result['price']}")
-
-                # 2. 정확한 가격 클래스로 시도 (원가)
-                original_price_elements = driver.find_elements(By.CSS_SELECTOR, ".price-amount.original-price-amount")
-                if original_price_elements:
-                    orig_text = original_price_elements[0].text.strip()
-                    orig_match = re.search(r'([0-9,]+)(?:원)?', orig_text)
-                    if orig_match:
-                        result["originPrice"] = orig_match.group(1).replace(",", "") + "원"
-                        logger.info(f"원가 추출 성공: {result['originPrice']}")
-
-                # 3. 백업 선택자들
-                if "price" not in result:
-                    backup_price_selectors = [
-                        ".PriceInfo_finalPrice__qniie",
-                        ".total-price strong",
-                        ".total-price",
-                        ".sale-price",
-                        ".product-price",
-                        ".price-value"
-                    ]
-
-                    for selector in backup_price_selectors:
-                        elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                        if elements:
-                            price_text = elements[0].text.strip()
-                            price_match = re.search(r'([0-9,]+)(?:원)?', price_text)
-                            if price_match:
-                                result["price"] = price_match.group(1).replace(",", "") + "원"
-                                logger.info(f"백업 선택자로 가격 추출: {result['price']}")
-                                break
-
-                # 4. 페이지 소스에서 가격 패턴 찾기
-                if "price" not in result:
-                    page_source = driver.page_source
-                    price_matches = re.findall(r'([0-9,]{3,})원', page_source)
-                    if price_matches:
-                        prices = []
-                        for match in price_matches:
-                            try:
-                                price_value = int(match.replace(",", ""))
-                                if price_value > 100:
-                                    prices.append(price_value)
-                            except:
-                                continue
-
-                        if prices:
-                            prices.sort()
-                            result["price"] = str(prices[0]) + "원"
-                            if "originPrice" not in result:
-                                result["originPrice"] = str(prices[-1] if len(prices) > 1 else prices[0]) + "원"
-                            logger.info(f"일반 패턴 검색으로 가격 추출: 현재가 {result['price']}, 원가 {result['originPrice']}")
-
-            except Exception as e:
-                logger.warning(f"가격 추출 중 오류: {str(e)}")
-
-            # 가격 정보 보완
-            if "price" in result and "originPrice" not in result:
-                result["originPrice"] = result["price"]
-            elif "originPrice" in result and "price" not in result:
-                result["price"] = result["originPrice"]
-
-            # 배송 정보
-            try:
-                page_source = driver.page_source
-                result["isRocket"] = "Y" if "로켓배송" in page_source else "N"
-                result["freeShipping"] = "Y" if "무료배송" in page_source else "N"
-            except Exception as e:
-                logger.warning(f"배송 정보 추출 중 오류: {str(e)}")
-                result["isRocket"] = "N"
-                result["freeShipping"] = "N"
-
-            # HTML도 함께 반환
-            result["html"] = driver.page_source
-            result["html_length"] = len(driver.page_source)
-
-            # 상품 정보 확인
-            if "productName" not in result or not result["productName"]:
-                logger.warning("제품명 추출 실패")
-                return None
-
-            logger.info(f"상품 정보 추출 완료: {result.get('productName')}")
+            
             return result
 
         finally:
@@ -284,12 +228,16 @@ def extract_product_info_with_undetected(product_url, proxy=None):
                     logger.warning(f"브라우저 종료 중 오류: {str(e)}")
 
     except Exception as e:
-        logger.error(f"undetected-chromedriver 사용 중 오류 발생: {str(e)}")
+        logger.error(f"전체 프로세스 중 오류 발생: {str(e)}")
+        import traceback
+        logger.error(f"상세 오류: {traceback.format_exc()}")
+        
         if driver:
             try:
                 driver.quit()
             except:
                 pass
+        
         return None
 
 @app.route('/')
