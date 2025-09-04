@@ -1,5 +1,5 @@
 flask==2.3.3
-selenium==4.15.0
+selenium==4.11.2
 undetected-chromedriver==3.5.3
 requests==2.31.0
 gunicorn==21.2.0
