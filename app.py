@@ -1,4 +1,4 @@
-# app.py - 원본 Python 코드와 동일한 로직으로 수정
+# app.py - 원본 Python 로직과 동일하게 데이터 추출 중심
 from flask import Flask, request, jsonify, Response
 import requests
 import re
@@ -29,14 +29,16 @@ def resolve_short_url(short_url):
     """단축 URL 해결 메서드"""
     logger.info(f"단축 URL 해결 시도: {short_url}")
     try:
-        response = requests.head(short_url, allow_redirects=False)
+        session = requests.Session()
+        response = session.head(short_url, allow_redirects=False)
         if 300 <= response.status_code < 400:
             redirect_url = response.headers.get('Location')
-            if redirect_url and "coupang.com" in redirect_url:
+            if redirect_url:
                 logger.info(f"단축 URL 리다이렉트 발견: {redirect_url}")
-                return redirect_url
-            else:
-                logger.error(f"유효하지 않은 쿠팡 URL로 리다이렉트됨: {redirect_url}")
+                if "coupang.com" in redirect_url:
+                    return redirect_url
+                else:
+                    logger.error(f"유효하지 않은 쿠팡 URL로 리다이렉트됨: {redirect_url}")
         else:
             logger.error(f"단축 URL 해결 실패: {response.status_code}")
         return None
@@ -59,33 +61,30 @@ def process_product_url(url):
     return url
 
 def extract_product_info_with_undetected(product_url, proxy=None):
-    """undetected-chromedriver를 사용하여 상품 정보 추출 (원본 코드와 동일)"""
+    """원본 Python 코드와 완전 동일한 상품 정보 추출 함수"""
     driver = None
     try:
         logger.info(f"undetected-chromedriver를 사용하여 상품 정보 추출 시도: {product_url}")
 
-        # undetected_chromedriver 설정
+        # undetected_chromedriver 설정 (원본과 동일)
         try:
-            # 환경 변수 설정 (캐시 문제 해결)
             temp_dir = os.path.join(os.path.expanduser('~'), '.temp_chromedriver')
             os.makedirs(temp_dir, exist_ok=True)
             os.environ['UC_DRIVER_CACHE_DIR'] = temp_dir
 
-            # undetected_chromedriver 캐시 재설정 옵션
             if not hasattr(uc, 'TARGET_VERSION'):
-                uc.TARGET_VERSION = 114  # 고정 버전 설정
+                uc.TARGET_VERSION = 114
 
-            # 다운로드 시간 초과 시간 증가
             try:
                 import socket
-                socket.setdefaulttimeout(30)  # 기본 시간 초과 설정 (초)
+                socket.setdefaulttimeout(30)
             except:
                 pass
 
         except Exception as e:
             logger.error(f"undetected_chromedriver 설정 오류: {str(e)}")
 
-        # Chrome 옵션 설정 (원본과 동일)
+        # Chrome 옵션 설정 (원본과 완전 동일)
         options = uc.ChromeOptions()
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-popup-blocking")
@@ -93,22 +92,22 @@ def extract_product_info_with_undetected(product_url, proxy=None):
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--no-sandbox")
         options.add_argument("--lang=ko-KR,ko")
-
+        
         # 메모리 관련 설정 추가
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-software-rasterizer")
         options.add_argument("--disable-setuid-sandbox")
-
+        
         # 성능 개선을 위한 추가 설정
         options.add_argument("--ignore-certificate-errors")
         options.add_argument("--ignore-ssl-errors")
         options.add_argument("--dns-prefetch-disable")
         options.add_argument("--disable-web-security")
-
+        
         # 이미지 로딩 비활성화 (성능 향상)
         options.add_argument("--blink-settings=imagesEnabled=false")
         
-        # 헤드리스 모드 (서버 환경에서)
+        # 헤드리스 모드
         options.add_argument("--headless")
 
         # 프록시 설정
@@ -116,33 +115,13 @@ def extract_product_info_with_undetected(product_url, proxy=None):
             options.add_argument(f'--proxy-server={proxy}')
             logger.info(f"프록시 설정: {proxy}")
 
-        # 브라우저 시작 (다운로드 오류 처리 추가)
+        # 브라우저 시작
         try:
             driver = uc.Chrome(options=options, use_subprocess=True)
             driver.set_page_load_timeout(30)
         except Exception as e:
             logger.error(f"Chrome 드라이버 초기화 오류: {str(e)}")
-            import traceback
-            logger.error(f"상세 오류: {traceback.format_exc()}")
-
-            # 오류가 ContentTooShortError 또는 다운로드 관련 오류인 경우 캐시 정리 시도
-            error_msg = str(e).lower()
-            if "content" in error_msg or "download" in error_msg or "urlretrieve" in error_msg:
-                logger.info("ChromeDriver 다운로드 오류 감지, 캐시 정리 시도...")
-                try:
-                    cache_dir = os.path.join(os.path.expanduser('~'), '.undetected_chromedriver')
-                    if os.path.exists(cache_dir):
-                        shutil.rmtree(cache_dir)
-                        logger.info(f"캐시 디렉토리 삭제 성공: {cache_dir}")
-
-                    temp_dir = os.path.join(os.path.expanduser('~'), '.temp_chromedriver')
-                    if os.path.exists(temp_dir):
-                        shutil.rmtree(temp_dir)
-                        logger.info(f"임시 캐시 디렉토리 삭제 성공: {temp_dir}")
-                except Exception as cache_err:
-                    logger.error(f"캐시 정리 오류: {str(cache_err)}")
-
-            return None  # 초기화 실패 시 None 반환
+            return None
 
         try:
             # 쿠팡 홈페이지 먼저 방문
@@ -153,7 +132,7 @@ def extract_product_info_with_undetected(product_url, proxy=None):
             # 상품 페이지 방문
             logger.info(f"상품 페이지 방문: {product_url}")
             driver.get(product_url)
-            time.sleep(5)  # 충분한 로딩 시간 부여
+            time.sleep(5)
 
             # 페이지 로드 대기
             try:
@@ -162,134 +141,144 @@ def extract_product_info_with_undetected(product_url, proxy=None):
                 )
             except TimeoutException:
                 logger.warning("페이지 로드 타임아웃")
-                if driver:
-                    driver.quit()
                 return None
-            except Exception as wait_err:
-                logger.warning(f"대기 중 오류: {str(wait_err)}")
-                # 계속 진행 시도
 
-            # HTML 반환
-            html_content = driver.page_source
-            logger.info(f"HTML 추출 완료 ({len(html_content)} bytes)")
-            
-            return html_content
+            # 상품 정보 추출 (원본 로직과 동일)
+            result = {}
+
+            # 제품 ID 추출
+            product_id_match = re.search(r'/products/(\d+)', product_url)
+            if product_id_match:
+                result["productId"] = product_id_match.group(1)
+
+            # 제품명 추출
+            try:
+                title = driver.title
+                if "사이트에 연결할 수 없음" in title or "Access Denied" in title:
+                    logger.error("사이트 접근이 차단되었습니다.")
+                    return None
+
+                result["productName"] = title.split(" - ")[0] if " - " in title else title
+
+                # 제품명 추출 백업 방법 (h1 태그에서)
+                if not result.get("productName") or len(result["productName"]) < 5:
+                    h1_elements = driver.find_elements(By.TAG_NAME, "h1")
+                    if h1_elements:
+                        result["productName"] = h1_elements[0].text.strip()
+                        logger.info(f"H1 태그에서 제품명 추출: {result['productName']}")
+            except Exception as e:
+                logger.warning(f"제품명 추출 중 오류: {str(e)}")
+
+            # 가격 추출 (원본과 동일한 복잡한 로직)
+            try:
+                # 1. 정확한 가격 클래스로 시도 (현재가)
+                final_price_elements = driver.find_elements(By.CSS_SELECTOR, ".price-amount.final-price-amount")
+                if final_price_elements:
+                    price_text = final_price_elements[0].text.strip()
+                    price_match = re.search(r'([0-9,]+)(?:원)?', price_text)
+                    if price_match:
+                        result["price"] = price_match.group(1).replace(",", "") + "원"
+                        logger.info(f"현재가 추출 성공: {result['price']}")
+
+                # 2. 정확한 가격 클래스로 시도 (원가)
+                original_price_elements = driver.find_elements(By.CSS_SELECTOR, ".price-amount.original-price-amount")
+                if original_price_elements:
+                    orig_text = original_price_elements[0].text.strip()
+                    orig_match = re.search(r'([0-9,]+)(?:원)?', orig_text)
+                    if orig_match:
+                        result["originPrice"] = orig_match.group(1).replace(",", "") + "원"
+                        logger.info(f"원가 추출 성공: {result['originPrice']}")
+
+                # 3. 백업 선택자들
+                if "price" not in result:
+                    backup_price_selectors = [
+                        ".PriceInfo_finalPrice__qniie",
+                        ".total-price strong",
+                        ".total-price",
+                        ".sale-price",
+                        ".product-price",
+                        ".price-value"
+                    ]
+
+                    for selector in backup_price_selectors:
+                        elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                        if elements:
+                            price_text = elements[0].text.strip()
+                            price_match = re.search(r'([0-9,]+)(?:원)?', price_text)
+                            if price_match:
+                                result["price"] = price_match.group(1).replace(",", "") + "원"
+                                logger.info(f"백업 선택자로 가격 추출: {result['price']}")
+                                break
+
+                # 4. 페이지 소스에서 가격 패턴 찾기
+                if "price" not in result:
+                    page_source = driver.page_source
+                    price_matches = re.findall(r'([0-9,]{3,})원', page_source)
+                    if price_matches:
+                        prices = []
+                        for match in price_matches:
+                            try:
+                                price_value = int(match.replace(",", ""))
+                                if price_value > 100:
+                                    prices.append(price_value)
+                            except:
+                                continue
+
+                        if prices:
+                            prices.sort()
+                            result["price"] = str(prices[0]) + "원"
+                            if "originPrice" not in result:
+                                result["originPrice"] = str(prices[-1] if len(prices) > 1 else prices[0]) + "원"
+                            logger.info(f"일반 패턴 검색으로 가격 추출: 현재가 {result['price']}, 원가 {result['originPrice']}")
+
+            except Exception as e:
+                logger.warning(f"가격 추출 중 오류: {str(e)}")
+
+            # 가격 정보 보완
+            if "price" in result and "originPrice" not in result:
+                result["originPrice"] = result["price"]
+            elif "originPrice" in result and "price" not in result:
+                result["price"] = result["originPrice"]
+
+            # 배송 정보
+            try:
+                page_source = driver.page_source
+                result["isRocket"] = "Y" if "로켓배송" in page_source else "N"
+                result["freeShipping"] = "Y" if "무료배송" in page_source else "N"
+            except Exception as e:
+                logger.warning(f"배송 정보 추출 중 오류: {str(e)}")
+                result["isRocket"] = "N"
+                result["freeShipping"] = "N"
+
+            # HTML도 함께 반환
+            result["html"] = driver.page_source
+            result["html_length"] = len(driver.page_source)
+
+            # 상품 정보 확인
+            if "productName" not in result or not result["productName"]:
+                logger.warning("제품명 추출 실패")
+                return None
+
+            logger.info(f"상품 정보 추출 완료: {result.get('productName')}")
+            return result
 
         finally:
-            # 브라우저 종료 - 여러 방법으로 시도
+            # 브라우저 종료
             if driver:
                 try:
-                    # 1. 일반적인 종료 시도
                     driver.quit()
                     logger.info("크롬 브라우저가 정상적으로 종료되었습니다.")
                 except Exception as e:
-                    logger.warning(f"일반 종료 실패: {str(e)}, 강제 종료 시도 중...")
-                    try:
-                        # 2. 창 닫기 시도
-                        driver.close()
-                        logger.info("창 닫기 성공")
-                    except:
-                        pass
-
-                    try:
-                        # 3. 다시 quit 시도
-                        driver.quit()
-                        logger.info("두 번째 종료 시도 성공")
-                    except:
-                        pass
+                    logger.warning(f"브라우저 종료 중 오류: {str(e)}")
 
     except Exception as e:
         logger.error(f"undetected-chromedriver 사용 중 오류 발생: {str(e)}")
-        # 자세한 오류 정보 로깅
-        import traceback
-        logger.error(f"상세 오류: {traceback.format_exc()}")
-
-        # 브라우저 강제 종료 시도 (추가된 부분)
         if driver:
             try:
                 driver.quit()
             except:
                 pass
-
         return None
-
-def extract_product_info(product_url, max_retries=3, proxy=None):
-    """상품 정보 추출 (메인 함수) - 원본과 동일한 로직"""
-    
-    # URL 처리
-    if "link.coupang.com" in product_url:
-        logger.info(f"단축 URL 감지됨: {product_url}")
-        resolved_url = resolve_short_url(product_url)
-        if resolved_url:
-            product_url = resolved_url
-        else:
-            logger.error(f"단축 URL을 해결할 수 없습니다: {product_url}")
-            return None
-
-    # URL 모바일 버전으로 변환
-    product_url = process_product_url(product_url)
-    if not product_url:
-        logger.error("유효한 쿠팡 URL이 아닙니다")
-        return None
-
-    # undetected_chromedriver 경로 확인 및 생성
-    try:
-        # undetected_chromedriver 캐시 디렉토리 경로
-        cache_dir = os.path.join(os.path.expanduser('~'), '.undetected_chromedriver')
-
-        # 캐시 디렉토리가 없거나 문제가 있으면 재생성
-        if not os.path.exists(cache_dir) or not os.access(cache_dir, os.W_OK):
-            logger.info("undetected_chromedriver 캐시 디렉토리 재설정 중...")
-            if os.path.exists(cache_dir):
-                try:
-                    shutil.rmtree(cache_dir)
-                except:
-                    pass
-            try:
-                os.makedirs(cache_dir, exist_ok=True)
-            except:
-                # 기본 디렉토리에 문제가 있으면 임시 디렉토리로 설정
-                temp_dir = tempfile.gettempdir()
-                cache_dir = os.path.join(temp_dir, '.undetected_chromedriver')
-                os.makedirs(cache_dir, exist_ok=True)
-                logger.info(f"undetected_chromedriver 캐시 디렉토리를 임시 경로로 설정: {cache_dir}")
-
-                # 환경 변수로 설정
-                os.environ['UC_DRIVER_CACHE_DIR'] = cache_dir
-    except Exception as e:
-        logger.warning(f"캐시 디렉토리 설정 중 오류: {str(e)}, 기본값 사용")
-
-    # undetected-chromedriver로 시도 (최대 재시도 횟수만큼)
-    for retry in range(max_retries):
-        try:
-            logger.info(f"undetected-chromedriver 시도 {retry + 1}/{max_retries}...")
-
-            # 프록시 없이 먼저 시도
-            result = extract_product_info_with_undetected(product_url, None)
-            if result and len(result) > 1000:  # HTML이 충분히 길면 성공
-                logger.info("undetected-chromedriver 크롤링 성공! (프록시 없이)")
-                return result
-
-            # 프록시가 있으면 프록시로 시도
-            if proxy:
-                logger.info(f"undetected-chromedriver 시도 {retry + 1}/{max_retries} (프록시 사용)...")
-                result = extract_product_info_with_undetected(product_url, proxy)
-                if result and len(result) > 1000:
-                    logger.info("undetected-chromedriver 크롤링 성공! (프록시 사용)")
-                    return result
-
-            logger.warning(f"undetected-chromedriver 시도 실패 ({retry + 1}/{max_retries})")
-            time.sleep(2)  # 재시도 전 대기
-
-        except Exception as e:
-            logger.error(f"undetected-chromedriver 시도 중 오류: {str(e)}")
-            import traceback
-            logger.error(f"상세 오류: {traceback.format_exc()}")
-            time.sleep(2)  # 오류 발생 시 대기
-
-    # 모든 시도가 실패하면 None 반환
-    logger.warning("모든 크롤링 시도 실패")
-    return None
 
 @app.route('/')
 def home():
@@ -297,102 +286,132 @@ def home():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Coupang Proxy Service</title>
+        <title>Coupang Data Extraction Service</title>
         <meta charset="utf-8">
         <style>
             body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
             .endpoint { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
             code { background: #e8e8e8; padding: 2px 4px; border-radius: 3px; }
             .status { color: #28a745; font-weight: bold; }
-            a { color: #007bff; text-decoration: none; }
-            a:hover { text-decoration: underline; }
         </style>
     </head>
     <body>
-        <h1>🛒 Coupang Proxy Service</h1>
-        <p class="status">✅ 서비스 정상 운영 중 (Python + undetected-chromedriver)</p>
+        <h1>Coupang Data Extraction Service</h1>
+        <p class="status">원본 Python 로직 기반 데이터 추출 서비스</p>
         
-        <h2>📡 API 엔드포인트</h2>
+        <h2>API 엔드포인트</h2>
         
         <div class="endpoint">
-            <h3>HTML 프록시</h3>
-            <code>GET /proxy?url=쿠팡URL</code>
-            <p>쿠팡 페이지를 HTML 형태로 반환</p>
+            <h3>상품 정보 추출 (JSON)</h3>
+            <code>GET /extract?url=쿠팡URL</code>
+            <p>상품 정보를 JSON 형태로 반환</p>
+        </div>
+        
+        <div class="endpoint">
+            <h3>HTML만 가져오기</h3>
+            <code>GET /html?url=쿠팡URL</code>
+            <p>크롤링한 HTML을 텍스트로 반환</p>
         </div>
         
         <div class="endpoint">
             <h3>프록시 사용</h3>
-            <code>GET /proxy?url=쿠팡URL&proxy=IP:PORT</code>
-            <p>지정한 프록시를 통해 접근</p>
+            <code>GET /extract?url=쿠팡URL&proxy=IP:PORT</code>
         </div>
         
-        <h2>💡 사용 예시</h2>
-        <p><a href="/proxy?url=https://www.coupang.com/vp/products/7959990775?vendorItemId=22491901734&itemId=90690647897" target="_blank">
-        테스트: 쿠팡 상품 페이지 보기</a></p>
+        <h2>사용 예시</h2>
+        <p><a href="/extract?url=https://www.coupang.com/vp/products/7959990775?vendorItemId=22491901734&itemId=90690647897">
+        테스트: 상품 정보 추출</a></p>
         
-        <p><a href="/health">서버 상태 확인</a></p>
-        
-        <h3>⚙️ 지원 기능</h3>
-        <ul>
-            <li>✅ undetected-chromedriver 사용</li>
-            <li>✅ 단축 URL 자동 해결</li>
-            <li>✅ 모바일 버전 자동 변환</li>
-            <li>✅ 프록시 지원</li>
-            <li>✅ CORS 헤더 자동 추가</li>
-            <li>✅ 자동 재시도 (최대 3회)</li>
-        </ul>
+        <p><a href="/html?url=https://www.coupang.com/vp/products/7959990775?vendorItemId=22491901734&itemId=90690647897">
+        테스트: HTML 가져오기</a></p>
     </body>
     </html>
     '''
 
-@app.route('/proxy')
-def proxy_coupang():
-    """쿠팡 페이지를 프록시해서 HTML 반환"""
+@app.route('/extract')
+def extract_product():
+    """상품 정보를 JSON으로 추출 (원본 로직)"""
+    url = request.args.get('url')
+    proxy = request.args.get('proxy')
+    
+    if not url:
+        return jsonify({"error": "Missing url parameter"}), 400
+    
+    logger.info(f"상품 정보 추출 요청: {url}")
+    
+    # URL 처리
+    if "link.coupang.com" in url:
+        resolved_url = resolve_short_url(url)
+        if resolved_url:
+            url = resolved_url
+        else:
+            return jsonify({"error": "Failed to resolve short URL"}), 400
+    
+    processed_url = process_product_url(url)
+    if not processed_url:
+        return jsonify({"error": "Invalid Coupang URL"}), 400
+    
+    # 상품 정보 추출
+    result = extract_product_info_with_undetected(processed_url, proxy)
+    
+    if result:
+        return jsonify({
+            "success": True,
+            "data": {
+                "productId": result.get("productId"),
+                "productName": result.get("productName"),
+                "price": result.get("price"),
+                "originPrice": result.get("originPrice"),
+                "isRocket": result.get("isRocket"),
+                "freeShipping": result.get("freeShipping")
+            },
+            "html_length": result.get("html_length", 0),
+            "timestamp": time.time()
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "error": "Failed to extract product info"
+        }), 500
+
+@app.route('/html')
+def get_html():
+    """HTML을 텍스트 형태로 반환"""
     url = request.args.get('url')
     proxy = request.args.get('proxy')
     
     if not url:
         return "Missing url parameter", 400
     
-    logger.info(f"프록시 요청 받음: {url}")
+    logger.info(f"HTML 가져오기 요청: {url}")
     
-    # HTML 가져오기 (원본 extract_product_info 함수 사용)
-    html_content = extract_product_info(url, max_retries=3, proxy=proxy)
+    # URL 처리
+    if "link.coupang.com" in url:
+        resolved_url = resolve_short_url(url)
+        if resolved_url:
+            url = resolved_url
+        else:
+            return "Failed to resolve short URL", 400
     
-    if html_content:
-        # CORS 헤더와 함께 HTML 반환 (헤더 수정)
-        response = Response(html_content, mimetype='text/html')
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-        response.headers['Content-Encoding'] = 'identity'  # 압축 문제 해결
-        response.headers['Transfer-Encoding'] = ''  # chunked 인코딩 비활성화
-        logger.info(f"HTML 반환 성공 ({len(html_content)} bytes)")
-        return response
+    processed_url = process_product_url(url)
+    if not processed_url:
+        return "Invalid Coupang URL", 400
+    
+    # HTML 가져오기
+    result = extract_product_info_with_undetected(processed_url, proxy)
+    
+    if result and "html" in result:
+        return result["html"], 200, {'Content-Type': 'text/plain; charset=utf-8'}
     else:
-        logger.error("페이지 가져오기 실패")
-        return "Failed to fetch page", 500
+        return "Failed to fetch HTML", 500
 
 @app.route('/health')
 def health():
     return jsonify({
         "status": "OK",
-        "service": "Coupang Proxy",
-        "timestamp": time.time(),
-        "python_version": "3.9",
-        "selenium_support": True,
-        "undetected_chromedriver": True
+        "service": "Coupang Data Extraction",
+        "timestamp": time.time()
     })
-
-# OPTIONS 요청 처리 (CORS)
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        response = Response()
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-        return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
