@@ -85,45 +85,40 @@ def extract_product_info_with_undetected(product_url, proxy=None):
             logger.error(f"undetected_chromedriver 설정 오류: {str(e)}")
 
      # Chrome 옵션 설정 (가상 디스플레이 환경용)
+        # Chrome 옵션 설정 (호환성 우선)
         options = uc.ChromeOptions()
         
-        # 기본 보안 및 안정성 설정
+        # 기본 필수 설정
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-setuid-sandbox")
         options.add_argument("--disable-gpu")
-        options.add_argument("--disable-software-rasterizer")
         
-        # 자동화 감지 방지 (핵심)
+        # 자동화 감지 방지 (핵심만)
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--exclude-switches=enable-automation")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
         
-        # 브라우저 동작 설정
+        # 기본 브라우저 설정
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-popup-blocking")
-        options.add_argument("--disable-extensions-file-access-check")
-        options.add_argument("--disable-plugins-discovery")
-        
-        # 네트워크 및 보안 설정
-        options.add_argument("--ignore-certificate-errors")
-        options.add_argument("--ignore-ssl-errors")
-        options.add_argument("--disable-web-security")
-        options.add_argument("--dns-prefetch-disable")
+        options.add_argument("--lang=ko-KR,ko")
         
         # 성능 최적화
         options.add_argument("--blink-settings=imagesEnabled=false")
         
-        # 언어 및 지역 설정
-        options.add_argument("--lang=ko-KR,ko")
+        # 네트워크 설정
+        options.add_argument("--ignore-certificate-errors")
+        options.add_argument("--disable-web-security")
         
-        # 가상 디스플레이 설정
+        # 가상 디스플레이
         options.add_argument("--display=:99")
-        options.add_argument("--start-maximized")
         
-        # User-Agent 설정
+        # User-Agent (간단한 방식)
         options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        
+        # 문제가 되는 옵션들 제거:
+        # - excludeSwitches 관련
+        # - useAutomationExtension 관련 
+        # - experimental_option 관련
         
         # 헤드리스 모드 제거됨 - 가상 디스플레이 사용
 
