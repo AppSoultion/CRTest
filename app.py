@@ -84,42 +84,48 @@ def extract_product_info_with_undetected(product_url, proxy=None):
         except Exception as e:
             logger.error(f"undetected_chromedriver 설정 오류: {str(e)}")
 
-        # Chrome 옵션 설정 (원본과 완전 동일)
+     # Chrome 옵션 설정 (가상 디스플레이 환경용)
         options = uc.ChromeOptions()
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-popup-blocking")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--lang=ko-KR,ko")
         
-        # 메모리 관련 설정 추가
+        # 기본 보안 및 안정성 설정
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-setuid-sandbox")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--disable-setuid-sandbox")
         
-        # 성능 개선을 위한 추가 설정
-        options.add_argument("--ignore-certificate-errors")
-        options.add_argument("--ignore-ssl-errors")
-        options.add_argument("--dns-prefetch-disable")
-        options.add_argument("--disable-web-security")
-        
-        # 이미지 로딩 비활성화 (성능 향상)
-        options.add_argument("--blink-settings=imagesEnabled=false")
-        
-    
-
+        # 자동화 감지 방지 (핵심)
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("--exclude-switches=enable-automation")
-        options.add_argument("--useragent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        options.add_argument("--disable-extensions-file-access-check")
-        options.add_argument("--disable-extensions-except")
-        options.add_argument("--disable-plugins-discovery")
-        options.add_argument("--start-maximized")
-        
-        # JavaScript로 webdriver 속성 숨기기
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
+        
+        # 브라우저 동작 설정
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-popup-blocking")
+        options.add_argument("--disable-extensions-file-access-check")
+        options.add_argument("--disable-plugins-discovery")
+        
+        # 네트워크 및 보안 설정
+        options.add_argument("--ignore-certificate-errors")
+        options.add_argument("--ignore-ssl-errors")
+        options.add_argument("--disable-web-security")
+        options.add_argument("--dns-prefetch-disable")
+        
+        # 성능 최적화
+        options.add_argument("--blink-settings=imagesEnabled=false")
+        
+        # 언어 및 지역 설정
+        options.add_argument("--lang=ko-KR,ko")
+        
+        # 가상 디스플레이 설정
+        options.add_argument("--display=:99")
+        options.add_argument("--start-maximized")
+        
+        # User-Agent 설정
+        options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        
+        # 헤드리스 모드 제거됨 - 가상 디스플레이 사용
 
         # 프록시 설정
         if proxy:
