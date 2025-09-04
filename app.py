@@ -91,6 +91,14 @@ def find_chrome_executable():
     logger.error("Chrome 실행 파일을 찾을 수 없습니다")
     return None
 
+def get_chrome_path():
+    chrome_path = "/usr/bin/google-chrome-stable"
+    if os.path.exists(chrome_path):
+        return chrome_path
+    else:
+        logger.error("Chrome not found")
+        return None
+
 
 def extract_product_info_with_undetected(product_url, proxy=None):
     """undetected-chromedriver를 사용하여 상품 정보 추출 (Chrome 경로 지정)"""
@@ -129,13 +137,13 @@ def extract_product_info_with_undetected(product_url, proxy=None):
         # Chrome 브라우저 시작 (경로 명시적 지정)
         try:
             # Chrome 실행 파일 경로를 명시적으로 지정
-            chrome_binary_path = find_chrome_executable()
-            if not chrome_binary_path:
+            chrome_path = get_chrome_path()
+            if not chrome_path:
                 return None
             
             driver = uc.Chrome(
                 options=options,
-                browser_executable_path=chrome_binary_path,
+                browser_executable_path=chrome_path,
                 use_subprocess=True
             )
             
