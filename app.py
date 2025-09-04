@@ -360,11 +360,13 @@ def proxy_coupang():
     html_content = extract_product_info(url, max_retries=3, proxy=proxy)
     
     if html_content:
-        # CORS 헤더와 함께 HTML 반환
-        response = Response(html_content, mimetype='text/html; charset=utf-8')
+        # CORS 헤더와 함께 HTML 반환 (헤더 수정)
+        response = Response(html_content, mimetype='text/html')
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        response.headers['Content-Encoding'] = 'identity'  # 압축 문제 해결
+        response.headers['Transfer-Encoding'] = ''  # chunked 인코딩 비활성화
         logger.info(f"HTML 반환 성공 ({len(html_content)} bytes)")
         return response
     else:
