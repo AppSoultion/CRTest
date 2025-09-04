@@ -107,8 +107,19 @@ def extract_product_info_with_undetected(product_url, proxy=None):
         # 이미지 로딩 비활성화 (성능 향상)
         options.add_argument("--blink-settings=imagesEnabled=false")
         
-        # 헤드리스 모드
-        options.add_argument("--headless")
+    
+
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--exclude-switches=enable-automation")
+        options.add_argument("--useragent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        options.add_argument("--disable-extensions-file-access-check")
+        options.add_argument("--disable-extensions-except")
+        options.add_argument("--disable-plugins-discovery")
+        options.add_argument("--start-maximized")
+        
+        # JavaScript로 webdriver 속성 숨기기
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
 
         # 프록시 설정
         if proxy:
