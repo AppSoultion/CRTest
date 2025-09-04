@@ -60,6 +60,38 @@ def process_product_url(url):
     logger.info(f"처리된 URL: {url}")
     return url
 
+def find_chrome_executable():
+    """Chrome 실행 파일 경로 찾기"""
+    possible_paths = [
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",  
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
+        "/opt/google/chrome/chrome",
+        "/snap/bin/chromium"
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path) and os.access(path, os.X_OK):
+            logger.info(f"Chrome 실행 파일 발견: {path}")
+            return path
+    
+    # 시스템 PATH에서 찾기
+    import subprocess
+    try:
+        result = subprocess.run(['which', 'google-chrome-stable'], 
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode == 0 and result.stdout.strip():
+            path = result.stdout.strip()
+            logger.info(f"PATH에서 Chrome 발견: {path}")
+            return path
+    except:
+        pass
+    
+    logger.error("Chrome 실행 파일을 찾을 수 없습니다")
+    return None
+
+
 def extract_product_info_with_undetected(product_url, proxy=None):
     """undetected-chromedriver를 사용하여 상품 정보 추출 (Chrome 경로 지정)"""
     driver = None
@@ -97,7 +129,15 @@ def extract_product_info_with_undetected(product_url, proxy=None):
         # Chrome 브라우저 시작 (경로 명시적 지정)
         try:
             # Chrome 실행 파일 경로를 명시적으로 지정
-            chrome_binary_path = "/usr/bin/google-chrome-stable"
+            chrome_binary_path = find_chrome_executable()
+            if not chrome_binary_path:
+                return None
+            
+            driver = uc.Chrome(
+                options=options,
+                browser_executable_path=chrome_binary_path,
+                use_subprocess=True
+            )
             
             # Chrome 바이너리가 존재하는지 확인
             if not os.path.exists(chrome_binary_path):
