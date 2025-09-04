@@ -35,4 +35,8 @@ sleep 2\n\
 exec "$@"' > /app/start.sh \
 && chmod +x /app/start.sh
 
+# Dockerfile에 추가
+RUN chmod +x /usr/bin/google-chrome-stable \
+    && ln -s /usr/bin/google-chrome-stable /usr/bin/google-chrome
+
 CMD ["/app/start.sh", "gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120", "app:app"]
